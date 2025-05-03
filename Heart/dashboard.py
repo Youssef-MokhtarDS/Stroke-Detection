@@ -28,7 +28,7 @@ st.markdown("""
 # Load data
 @st.cache_data
 def load_data():
-    heart = pd.read_csv('heart.csv')
+    heart = pd.read_csv('Heart\heart.csv')
     heart = heart.drop_duplicates()
     return heart
 
