@@ -67,7 +67,7 @@ def categorize_glucose(glucose):
 # Data Loading & Initialization
 # --------------------------
 try:
-    model = joblib.load('stroke_model.joblib')
+    model = joblib.load('app/stroke_model.joblib')
     feature_importance = pd.DataFrame({
         'Feature': ['Age', 'Ever_Married_Yes', 'Work_Type_Private', 
                    'Smoking_Status_smokes', 'Smoking_Status_never smoked',
