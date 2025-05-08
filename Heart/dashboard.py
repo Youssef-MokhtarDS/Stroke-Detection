@@ -28,7 +28,7 @@ st.markdown("""
 # Load data
 @st.cache_data
 def load_data():
-    heart = pd.read_csv(r'C:\Users\YOUSSEF\Stroke-Detection\Heart\heart.csv')
+    heart = pd.read_csv('Heart/heart.csv')
     heart = heart.drop_duplicates()
     return heart
 
@@ -394,32 +394,35 @@ with tab3:
 
     st.subheader("Correlation with Target")
 
-    correlation = heart.corr()["target"].drop("target").abs().sort_values(ascending=False)
-    correlation_df = correlation.reset_index()
-    correlation_df.columns = ["Feature", "Correlation"]
+    if filtered_heart['target'].nunique() < 2:
+        st.warning('Cannot calculate correlation - stroke status is constant in current selection')
+    else:
+        correlation = filtered_heart.corr()["target"].drop("target").abs().sort_values(ascending=False)
+        correlation_df = correlation.reset_index()
+        correlation_df.columns = ["Feature", "Correlation"]
 
-    features = st.multiselect(
-        "Select Features to Correlate:",
-        options=correlation_df["Feature"].tolist(),  
-        default=['age', 'cholestoral', 'max_hr']
-    )
+        features = st.multiselect(
+            "Select Features to Correlate:",
+            options=correlation_df["Feature"].tolist(),  
+            default=['age', 'cholestoral', 'max_hr']
+        )
 
-    filtered_corr = correlation_df[correlation_df["Feature"].isin(features)]
+        filtered_corr = correlation_df[correlation_df["Feature"].isin(features)]
 
-    fig = px.bar(filtered_corr, 
-                x="Feature", 
-                y="Correlation",
-                text=filtered_corr['Correlation'].apply(lambda x: f"{x:.3f}"),
-                color="Correlation",
-                color_continuous_scale="reds",
-                title="Most Correlated Factors with Heart Disease")
+        fig = px.bar(filtered_corr, 
+                    x="Feature", 
+                    y="Correlation",
+                    text=filtered_corr['Correlation'].apply(lambda x: f"{x:.3f}"),
+                    color="Correlation",
+                    color_continuous_scale="reds",
+                    title="Most Correlated Factors with Heart Disease")
 
-    fig.update_layout(xaxis_title="Feature", yaxis_title="Correlation Strength", title_x=0.5, font_size=14)
-    fig.update_traces(
-        hovertemplate="Feature: %{x}<br>Correlation: %{y}",
-        marker=dict(line=dict(color='#111', width=1))
-    )
-    st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(xaxis_title="Feature", yaxis_title="Correlation Strength", title_x=0.5, font_size=14)
+        fig.update_traces(
+            hovertemplate="Feature: %{x}<br>Correlation: %{y}",
+            marker=dict(line=dict(color='#111', width=1))
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
 
 st.sidebar.download_button(

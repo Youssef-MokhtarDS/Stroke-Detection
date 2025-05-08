@@ -26,10 +26,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
 # # Load data
 @st.cache_data
 def load_data():
-    stroke = pd.read_csv("cleaned_stroke_data.csv")
+    stroke = pd.read_csv("Stroke/processed_data.csv")
     stroke = stroke.drop_duplicates()
     return stroke
 
@@ -151,31 +152,26 @@ attributes = [
     'heart_disease', 
     'ever_married', 
     'work_type', 
-    'residence_type',
+    'Residence_type',
     'avg_glucose_level',
     'smoking_status',
     'stroke',  
-    'age_category',
-    'bmi_group',
-    'glucose_level_group'
 ]
 
 #labels
 label = {
-    'bmi':'Body Mass Index', 
     'gender':'Gender', 
     'age':'Age', 
     'hypertension':'Hypertension', 
     'heart_disease':'Heart Disease', 
     'ever_married':'Married', 
     'work_type':'Work Type', 
-    'residence_type':'Residence Type',
+    'Residence_type':'Residence Type',
     'avg_glucose_level':'Avg Glucose Level',
+    'bmi':'Body Mass Index', 
     'smoking_status':'Smoking Status',
     'stroke':'Stroke',  
-    'age_category':'AgeCategory',
-    'bmi_group':'BMI_Group',
-    'glucose_level_group':'Glucose Level Group'}
+    }
 
 
 def gender_color_discrete_sequence():
@@ -203,32 +199,49 @@ def stroke_color_discrete_sequence():
         return ["#e5eb71", "#5681ba"]
     
 with tab1:
-    col1, col2 = st.columns([2, 1])
+
+    st.subheader("Age Distribution Explorer")
+    age_bins = st.slider("Number of Age Bins", 5, 50, 25)
+    
+    fig = px.histogram(
+        filtered_df, x="age", nbins=age_bins,
+        color=filtered_df['gender'].map({0: 'Female', 1: 'Male'}),
+        marginal="box",
+        hover_data=filtered_df.columns,
+        barmode="stack",
+        opacity=0.8,
+        color_discrete_sequence= gender_color_discrete_sequence(),
+        labels=label,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        # age distribution
-        st.subheader("Age Distribution Explorer")
-        age_bins = st.slider("Number of Age Bins", 5, 50, 25)
-        
-        fig = px.histogram(
-            filtered_df, x="age", nbins=age_bins,
-            color=filtered_df['gender'].map({0: 'Female', 1: 'Male'}),
-            marginal="box",
-            hover_data=filtered_df.columns,
-            barmode="stack",
-            opacity=0.8,
-            color_discrete_sequence= gender_color_discrete_sequence(),
-            labels=label,
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
         # gender distribution
         st.subheader("Gender Distribution")
         fig = px.pie(filtered_df, 
                     names=filtered_df['gender'].map({1: 'Male', 0: 'Female'}), 
                     hole=0.4,
                     color_discrete_sequence = ["#FF69c0", "#4169D0"] if gender_filter == 'All' else gender_color_discrete_sequence())
+        st.plotly_chart(fig, use_container_width=True)        
+    
+    with col2:
+        # stroke status distribution
+        st.subheader("Stroke Status Distribution")
+        fig = px.pie(filtered_df,
+                     names=filtered_df['stroke'].map({1: 'Stroke', 0: 'NO Stroke'}),
+                     hole = 0.4,
+                     color_discrete_sequence= stroke_color_discrete_sequence())
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col3:
+        # heart disease distribution
+        st.subheader('Heart Disease Distribution')
+        fig = px.pie(filtered_df,
+                     names=filtered_df['heart_disease'].map({1: 'Diseased', 0: 'Not Diseased'}),
+                     hole= 0.4,
+                     color_discrete_sequence= heart_color_discrete_sequence())
         st.plotly_chart(fig, use_container_width=True)
         
     #countplot for attributes with little unique values
@@ -239,11 +252,8 @@ with tab1:
         "heart_disease",
         "ever_married",
         "work_type",
-        "residence_type",
-        "smoking_status",
-        "age_category",
-        "bmi_group",
-        "glucose_level_group",]
+        "Residence_type",
+        "smoking_status",]
     
     hue = [
         "gender",
@@ -411,8 +421,8 @@ with tab2:
 with tab3:
     st.subheader("Correlation Analysis")
     
-    att = filtered_df[['age', 'avg_glucose_level', 'bmi', 'heart_disease', 'gender', 'hypertension']]
-    corr_matrix = att.corr()
+    # att = filtered_df[['age', 'avg_glucose_level', 'bmi', 'heart_disease', 'gender', 'hypertension']]
+    corr_matrix = filtered_df.corr()
     features=st.multiselect(
         "Select Features to Include in Correlation Matrix",
         options=corr_matrix.columns,
@@ -430,81 +440,40 @@ with tab3:
     
     st.subheader("Correlation with Stroke Status")
 
-    att = ['stroke', 'age', 'avg_glucose_level', 'bmi', 'heart_disease', 'gender', 'hypertension']
+    if filtered_df['stroke'].nunique() < 2:
+        st.warning('Cannot calculate correlation - stroke status is constant in current selection')
+    else:
+        correlation = filtered_df.corr()["stroke"].drop("stroke").abs().sort_values(ascending=False)
 
-    filtered_df['gender'] = filtered_df['gender'].astype('category').cat.codes
 
-    correlation_matrix = filtered_df[att].corr()
+        correlation_df = correlation.reset_index()
+        correlation_df.columns = ["Feature", "Correlation"]
 
-    correlation = correlation_matrix['stroke'].sort_values(ascending=False)
+        features = st.multiselect(
+            "Select Features to Correlate:",
+            options=correlation_df["Feature"].tolist(),  
+            default=['age', 'bmi', 'avg_glucose_level', 'heart_disease']
+        )
 
-    corr_df = correlation.reset_index()
-    corr_df.columns = ['Feature', 'Correlation']
+        filtered_corr = correlation_df[correlation_df["Feature"].isin(features)]
 
-    features_without_stroke = corr_df[corr_df['Feature'] != 'stroke']['Feature'].tolist()
+        fig = px.bar(filtered_corr, 
+                    x="Feature", 
+                    y="Correlation",
+                    text=filtered_corr['Correlation'].apply(lambda x: f"{x:.3f}"),
+                    color="Correlation",
+                    color_continuous_scale="reds",
+                    title="Most Correlated Factors with Heart Disease",
+                    labels=label,
+                    )
 
-    feature = st.multiselect(
-        "Select Feature to Correlate with Stroke Status",
-        options=features_without_stroke,  
-        default=[features_without_stroke[0]],  
-        key='feature_select'
-    )
-    
-    filtered_corr_df = corr_df[corr_df['Feature'].isin(feature)]
+        fig.update_layout(xaxis_title="Feature", yaxis_title="Correlation Strength", title_x=0.5, font_size=14)
+        fig.update_traces(
+            hovertemplate="Feature: %{x}<br>Correlation: %{y}",
+            marker=dict(line=dict(color='#111', width=1))
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-    fig = px.bar(
-        filtered_corr_df,
-        x='Feature',
-        y='Correlation',
-        color='Correlation',
-        color_continuous_scale='reds',
-        title="Correlation with Stroke Status",
-        text=filtered_corr_df['Correlation'].apply(lambda x: f"{x:.2f}"),
-        labels=label
-    )
-    fig.update_layout(
-        xaxis_title="Feature", 
-        yaxis_title="Correlation Strength", 
-        title_x=0.5, 
-        font_size=14
-    )
-    fig.update_traces(
-        hovertemplate="Feature: %{x}<br>Correlation: %{y}",
-        marker=dict(line=dict(color='#111', width=1)))
-    st.plotly_chart(fig, use_container_width=True)
-    
-        
-    # st.subheader("Correlation with Stroke Status")
-
-    # correlation = att.corr()['stroke'].sort_values(ascending=False)
-    # corr_df = correlation.reset_index()
-    # corr_df.columns = ['Feature', 'Correlation']
-
-    # feature = st.multiselect(
-    #     "Select Feature to Correlate with Stroke Status",
-    #     options=corr_df['Feature'].tolist(),
-    #     index=0,
-    #     key='feature_select'
-    # )
-    # filtered_corr_df = corr_df[corr_df['Feature'].isin(feature)]
-
-    # fig = px.bar(
-    #     filtered_corr_df,
-    #     x='Feature',
-    #     y='Correlation',
-    #     color='Correlation',
-    #     color_continuous_scale='reds',
-    #     title="Correlation with Stroke Status",
-    #     text = filtered_corr_df['Correlation'].apply(lambda x: f"{x:.2f}"),
-    #     labels=label
-    # )
-    # fig.update_layout(xaxis_title="Feature", yaxis_title="Correlation Strength", title_x=0.5, font_size=14)
-    # fig.update_traces(
-    #     hovertemplate="Feature: %{x}<br>Correlation: %{y}",
-    #     marker=dict(line=dict(color='#111', width=1))
-    # )
-    # st.plotly_chart(fig, use_container_width=True)
-    
 st.sidebar.download_button(
     label="📥 Download Filtered Data",
     data=filtered_df.to_csv(index=False).encode('utf-8'),
