@@ -9,7 +9,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        "About": "### Heart ]isease Insights Dashboard v1.0"
+        "About": "### Heart Disease Insights Dashboard v1.0"
     }
 )
 
@@ -131,12 +131,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs([
-    "📊 Distributions", 
-    "💊 Relations",
-    "🔗 Correlations"
-])
-
 attributes = [
     "age",
     "sex",
@@ -186,6 +180,13 @@ def target_color_discrete_sequence():
     else:
         return ["#FFA7A7", "#A8E6CF"]
     
+
+tab1, tab2, tab3 = st.tabs([
+    "📊 Distributions", 
+    "💊 Relations",
+    "🔗 Correlations"
+])
+
 with tab1:
     col1, col2 = st.columns([2, 1])
     
@@ -197,22 +198,20 @@ with tab1:
         fig = px.histogram(
             filtered_heart, x="age", nbins=age_bins,
             color="sex", marginal="box",
-            hover_data=filtered_heart.columns,
-            barmode="overlay",
+            barmode="stack",
             opacity=0.8,
             color_discrete_sequence= gender_color_discrete_sequence(),
-            labels={"sex": "Gender", "age": "Age"}
+            labels=label
         )
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
         # gender distribution
         st.subheader("Gender Distribution")
-        show_pct = st.checkbox("Show percentages", value=True)
-        fig = px.pie(filtered_heart, names='sex', hole=0.4,
-                    color_discrete_sequence = gender_color_discrete_sequence())
-        if show_pct:
-            fig.update_traces(textinfo='percent+label')
+        fig = px.pie(filtered_heart, 
+                     names=filtered_heart['sex'].map({1: 'Male', 0: 'Female'}), 
+                     hole=0.4,
+                     color_discrete_sequence = gender_color_discrete_sequence())
         st.plotly_chart(fig, use_container_width=True)
         
     #countplot for attributes with little unique values
